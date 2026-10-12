@@ -1,0 +1,137 @@
+# 30道标准题（离线模式评测）。check 类型: numeric(±tol%) / contains / must_clarify / must_refuse
+# 标准答案来自 data/buried_problems.json 埋点与数据库真值
+questions:
+  # ---- 单指标查询 ×10 ----
+  - id: Q01
+    type: 单指标查询
+    q: 2025年8月成都厂草鱼料的吨料原料成本是多少？
+    check: {numeric: 2714.7, tol_pct: 0.5}
+  - id: Q02
+    type: 单指标查询
+    q: 眉山厂2025年6月草鱼料的出成率是多少？
+    check: {numeric_range: [95.0, 98.0]}
+  - id: Q03
+    type: 单指标查询
+    q: 眉山厂2025年3月豆粕采购量是多少吨？
+    check: {numeric: 968.2, tol_pct: 1.0}
+  - id: Q04
+    type: 单指标查询
+    q: 重庆区域2025年9月的OTIF是多少？
+    check: {numeric: 76.9, tol_pct: 2.0}
+  - id: Q05
+    type: 单指标查询
+    q: 华东区域2025年8月的回款天数？
+    check: {numeric: 82.7, tol_pct: 2.0}
+  - id: Q06
+    type: 单指标查询
+    q: 2025年7到9月各供应商豆粕的质检蛋白均值分别是多少？
+    check: {contains: ["S03", "41.3"]}
+  - id: Q07
+    type: 单指标查询
+    q: 2025年12月全公司销售金额是多少万元？
+    check: {numeric: 1342.9, tol_pct: 2.0}
+  - id: Q08
+    type: 单指标查询
+    q: 2025年5月绵阳厂鲈鱼膨化料的吨料原料成本？
+    check: {numeric_range: [6000, 7200]}
+  - id: Q09
+    type: 单指标查询
+    q: 2025年10月成都厂育肥猪料的单位蛋白成本？
+    check: {numeric_range: [120, 160]}
+  - id: Q10
+    type: 单指标查询
+    q: 豆粕2025年3月采购价对期货的偏离度是多少？
+    check: {numeric: 1.9, tol_pct: 20.0}
+
+  # ---- 下钻/同比环比 ×8 ----
+  - id: Q11
+    type: 下钻环比
+    q: 成都厂草鱼料吨成本2025年下半年逐月环比怎么样？
+    check: {contains: ["环比"]}
+  - id: Q12
+    type: 下钻环比
+    q: 华东区域2025年回款天数逐月走势如何？
+    check: {contains: ["华东"], numeric: 82.1, tol_pct: 3.0}
+  - id: Q13
+    type: 下钻环比
+    q: 2025年8月各工厂草鱼料出成率对比？
+    check: {contains: ["成都厂", "91"]}
+  - id: Q14
+    type: 下钻环比
+    q: 豆粕2025年各月采购价对期货偏离度的走势？
+    check: {contains: ["偏离"]}
+  - id: Q15
+    type: 下钻环比
+    q: 对虾料2025年各月吨成本环比变化？
+    check: {contains: ["环比"]}
+  - id: Q16
+    type: 下钻环比
+    q: 2025年各区域销售金额排名？
+    check: {contains: ["成都周边"]}
+  - id: Q17
+    type: 下钻环比
+    q: 2025年8月成都厂各产品的出成率对比？
+    check: {contains: ["草鱼料", "91"]}
+  - id: Q18
+    type: 下钻环比
+    q: 眉山厂菜粕2025年采购量逐月走势？
+    check: {contains: ["采购量"]}
+
+  # ---- 归因 ×5（对应埋点，标准答案见 buried_problems.json） ----
+  - id: Q19
+    type: 归因
+    q: 8月成都厂草鱼料的吨原料成本为什么比7月涨了？
+    check: {contains: ["出成率"], numeric: 136.4, tol_pct: 1.0}
+    root_cause: 出成率效应
+  - id: Q20
+    type: 归因
+    q: 2025Q3哪个供应商的豆粕质量有问题？
+    check: {contains: ["S03"]}
+    root_cause: S03蛋白偏低
+  - id: Q21
+    type: 归因
+    q: 哪个区域的回款变差了？什么时候开始的？
+    check: {contains: ["华东", "2025-07"]}
+    root_cause: 华东H2回款恶化
+  - id: Q22
+    type: 归因
+    q: 眉山厂2025年哪个月豆粕采购最集中？当时价格水平如何？
+    check: {contains: ["2025-03", "968"]}
+    root_cause: 2025-03高点集中采购
+  - id: Q23
+    type: 归因
+    q: 重庆2025年9月交付为什么下降？
+    check: {contains: ["76.9"]}
+    root_cause: 旺季运力不足
+
+  # ---- what-if ×4 ----
+  - id: Q24
+    type: what-if
+    q: 如果豆粕下个月再涨10%，草鱼料配方该怎么调？吨成本会受多大影响？
+    check: {contains: ["建议", "配方", "元/吨"]}
+  - id: Q25
+    type: what-if
+    q: 鱼粉涨15%，鲈鱼膨化料吨成本会受多大影响？
+    check: {contains: ["建议", "鲈鱼膨化料"], numeric_range: [100, 900]}
+  - id: Q26
+    type: what-if
+    q: 菜粕涨20%，对虾料的配方会怎么变？
+    check: {contains: ["对虾料", "建议"]}
+  - id: Q27
+    type: what-if
+    q: 玉米涨10%，育肥猪料吨成本变化多少？
+    check: {contains: ["育肥猪料", "建议"]}
+
+  # ---- 应澄清或拒答 ×3 ----
+  - id: Q28
+    type: 澄清
+    q: 库存周转天数是多少？
+    check: {must_clarify: true}
+  - id: Q29
+    type: 拒答
+    q: 公司毛利率是多少？
+    check: {must_refuse: true}
+  - id: Q30
+    type: 拒答
+    q: 预测一下公司明年全年的净利润
+    check: {must_refuse: true}

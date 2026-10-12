@@ -1,0 +1,22 @@
+# Feed-Agent 配置文件
+# mode: llm = 调用大模型API（需填api_key）；offline = 零依赖规则路由（无API也可演示/评测）
+mode: offline
+
+llm:
+  # Kimi（月之暗面）OpenAI 兼容接口示例：
+  api_key: ""                      # 填入你的 key，例如 sk-xxxx
+  base_url: "https://api.moonshot.cn/v1"
+  model: "kimi-k2-0905-preview"
+  # DeepSeek 示例：
+  # base_url: "https://api.deepseek.com/v1"
+  # model: "deepseek-chat"
+  # 通义千问示例：
+  # base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+  # model: "qwen-plus"
+
+paths:
+  db: "data/company.duckdb"
+
+web:
+  host: "127.0.0.1"
+  port: 7100           # 预览默认端口；可用 python app.py --port N 或环境变量 PORT 覆盖

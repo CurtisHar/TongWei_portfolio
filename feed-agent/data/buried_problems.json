@@ -1,0 +1,26 @@
+{
+ "BP1": {
+  "desc": "成都厂2025-08草鱼料出成率降至91%（基准约96%），当月在厂玉米批次水分偏高(约15.5% vs 正常12.5%)",
+  "check_sql": "SELECT factory, product, month, ROUND(SUM(output_t)/SUM(input_t)*100,2) AS yield_pct FROM fact_production WHERE factory='成都厂' AND product='草鱼料' AND month IN ('2025-07','2025-08','2025-09') GROUP BY 1,2,3"
+ },
+ "BP2": {
+  "desc": "供应商S03在2025Q3的豆粕蛋白均值41.2%，低于正常43%",
+  "check_sql": "SELECT supplier, ROUND(AVG(protein_pct),2) FROM fact_qc_batch WHERE ingredient='豆粕' AND month BETWEEN '2025-07' AND '2025-09' GROUP BY supplier ORDER BY 2"
+ },
+ "BP3": {
+  "desc": "华东区域2025H2回款天数从约45天升至约78天",
+  "check_sql": "SELECT region, CASE WHEN month<'2025-07' THEN 'H1' ELSE 'H2' END AS half, ROUND(AVG(dso_days),1) FROM fact_sales GROUP BY 1,2"
+ },
+ "BP4": {
+  "desc": "眉山厂2025-03豆粕采购量约为月均3倍，且当月豆粕价处区间高位",
+  "check_sql": "SELECT month, SUM(qty_t) FROM fact_purchase WHERE factory='眉山厂' AND ingredient='豆粕' GROUP BY month ORDER BY 2 DESC LIMIT 3"
+ },
+ "BP5": {
+  "desc": "重庆区域2025-09 OTIF降至约0.82（旺季运力不足）",
+  "check_sql": "SELECT region, month, ROUND(AVG(on_time*in_full),3) AS otif FROM fact_sales WHERE region='重庆' AND month IN ('2025-08','2025-09','2025-10') GROUP BY 1,2"
+ },
+ "BP6": {
+  "desc": "鲈鱼膨化料2025-07吨成本环比大涨，主因鱼粉采购价处于高点（价格效应主导）",
+  "check_sql": "SELECT month, ROUND(AVG(unit_price),0) FROM fact_purchase WHERE ingredient='鱼粉' GROUP BY month ORDER BY 2 DESC LIMIT 3"
+ }
+}

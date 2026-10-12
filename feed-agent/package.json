@@ -1,0 +1,9 @@
+{
+  "name": "feed-agent",
+  "version": "0.3.0",
+  "private": true,
+  "description": "饲料供应链经营分析 Agent（零依赖 Web Demo）",
+  "scripts": {
+    "dev": "python app.py"
+  }
+}

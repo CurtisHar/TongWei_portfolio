@@ -1,0 +1,138 @@
+# 语义层：指标卡（机器可读）。SQL 由本文件模板 + Python 拼接，不由大模型编写。
+# 字段：label 业务名称 / grain 允许的维度 / expr 聚合表达式(DuckDB) / from 主表或CTE名 /
+#       ctes 依赖的公共表表达式 / filters 允许的筛选列 / caveats 口径说明 /
+#       status: ok | needs_clarification（多口径指标，须先澄清）
+
+common_ctes: {}
+
+metrics:
+  - name: ton_material_cost
+    label: 吨料原料成本（元/吨）
+    formula: SUM(配方比例×当月到厂采购均价) / 出成率
+    grain: [month, factory, product]
+    filters: [month, factory, product]
+    ctes:
+      f: "SELECT month, product, ingredient, pct/100.0 AS r FROM fact_formula"
+      p: "SELECT month, factory, ingredient, SUM(qty_t*unit_price)/SUM(qty_t) AS price FROM fact_purchase GROUP BY 1,2,3"
+      y: "SELECT month, factory, product, SUM(output_t)/SUM(input_t) AS yield_rate FROM fact_production GROUP BY 1,2,3"
+    join: "f JOIN p USING (month, ingredient) JOIN y USING (month, factory, product)"
+    expr: "SUM(f.r*p.price)/MAX(y.yield_rate)"
+    caveats: 不含加工费和包装；原料按当月采购移动加权平均价计
+    status: ok
+
+  - name: yield_rate
+    label: 出成率
+    formula: SUM(output_t)/SUM(input_t)
+    from: fact_production
+    grain: [month, factory, product]
+    filters: [month, factory, product]
+    expr: "SUM(output_t)/SUM(input_t)*100"
+    unit: "%"
+    caveats: 按实物重量口径；调质烘干会改变水分，严格口径应按干物质折算
+    status: ok
+
+  - name: inventory_days
+    label: 库存周转天数
+    status: needs_clarification
+    clarify: 请确认口径：算原料还是成品？按数量还是金额？平均库存用日均还是期初期末平均？
+    unit: 天
+    variants:
+      raw_qty_daily:
+        label: 原料·数量·日均库存口径
+        ctes:
+          inv: "SELECT strftime(CAST(day AS DATE), '%Y-%m') AS month, factory, AVG(qty_t) AS avg_qty FROM fact_inventory_day WHERE item_type='原料' GROUP BY 1,2"
+          outp: "SELECT month, factory, SUM(input_t)/COUNT(DISTINCT month) AS mth_input, SUM(input_t) AS tot_input FROM fact_production GROUP BY 1,2"
+        join: "inv JOIN outp USING (month, factory)"
+        expr: "AVG(inv.avg_qty)/(SUM(outp.tot_input)/30.0)"
+        grain: [month, factory]
+        filters: [month, factory]
+        caveats: 日均出库用当月生产投入量÷30近似
+      fg_amt_avg:
+        label: 成品·金额·期初期末平均口径
+        ctes:
+          inv: "SELECT strftime(CAST(day AS DATE), '%Y-%m') AS month, factory, item, AVG(amt_ky) AS avg_amt FROM fact_inventory_day WHERE item_type='成品' GROUP BY 1,2,3"
+          sale: "SELECT month, factory, SUM(amount_yuan)/1000.0 AS sale_ky FROM fact_sales GROUP BY 1,2"
+        join: "inv JOIN sale USING (month, factory)"
+        expr: "SUM(inv.avg_amt)/(SUM(sale.sale_ky)/30.0)"
+        grain: [month, factory]
+        filters: [month, factory]
+        caveats: 期初期末平均简化为当月日均（库存数据为模拟生成）
+
+  - name: purchase_price_deviation
+    label: 采购价对期货价的偏离度
+    formula: 当月到厂采购均价/当月期货主力月均价 - 1
+    ctes:
+      p: "SELECT month, factory, ingredient, SUM(qty_t*unit_price)/SUM(qty_t) AS price FROM fact_purchase GROUP BY 1,2,3"
+      fu: "SELECT month, CASE symbol WHEN 'M' THEN '豆粕' WHEN 'RM' THEN '菜粕' WHEN 'C' THEN '玉米' END AS ingredient, settle_avg FROM fact_futures_monthly"
+    join: "p JOIN fu USING (month, ingredient)"
+    expr: "(AVG(p.price)/AVG(fu.settle_avg) - 1)*100"
+    unit: "%"
+    grain: [month, factory, ingredient]
+    filters: [month, factory, ingredient]
+    caveats: 仅豆粕/菜粕/玉米有期货对标；偏离含基差与供应商溢价
+    status: ok
+
+  - name: unit_protein_cost
+    label: 单位蛋白成本（元/吨料/蛋白百分点）
+    formula: SUM(配方比例×采购均价) / SUM(配方比例×原料蛋白含量)
+    ctes:
+      f: "SELECT month, product, ingredient, pct/100.0 AS r FROM fact_formula"
+      p: "SELECT month, factory, ingredient, SUM(qty_t*unit_price)/SUM(qty_t) AS price FROM fact_purchase GROUP BY 1,2,3"
+    join: "f JOIN p ON f.month=p.month AND f.ingredient=p.ingredient"
+    expr: "SUM(f.r*p.price)/SUM(f.r*p.price)"   # 占位，实际在 tools.py 中用营养表计算
+    custom: true
+    grain: [month, factory, product]
+    filters: [month, factory, product]
+    caveats: 蛋白含量取供应商质检均值
+    status: ok
+
+  - name: otif
+    label: 准时足量交付率（OTIF）
+    formula: AVG(on_time × in_full)
+    from: fact_sales
+    expr: "AVG(on_time*in_full)*100"
+    unit: "%"
+    grain: [month, factory, region, product]
+    filters: [month, factory, region, product]
+    status: ok
+
+  - name: dso
+    label: 回款天数（DSO）
+    formula: AVG(dso_days)
+    from: fact_sales
+    expr: "AVG(dso_days)"
+    unit: 天
+    grain: [month, factory, region, customer]
+    filters: [month, factory, region, customer]
+    caveats: 按订单回款天数简单平均
+    status: ok
+
+  - name: qc_protein_avg
+    label: 质检批次蛋白均值
+    formula: AVG(protein_pct)
+    from: fact_qc_batch
+    expr: "AVG(protein_pct)"
+    unit: "%"
+    grain: [month, factory, ingredient, supplier]
+    filters: [month, factory, ingredient, supplier]
+    status: ok
+
+  - name: purchase_qty
+    label: 采购量
+    formula: SUM(qty_t)
+    from: fact_purchase
+    expr: "SUM(qty_t)"
+    unit: 吨
+    grain: [month, factory, ingredient, supplier]
+    filters: [month, factory, ingredient, supplier]
+    status: ok
+
+  - name: sales_amount
+    label: 销售金额
+    formula: SUM(amount_yuan)/10000
+    from: fact_sales
+    expr: "SUM(amount_yuan)/10000"
+    unit: 万元
+    grain: [month, factory, product, region]
+    filters: [month, factory, product, region]
+    status: ok
